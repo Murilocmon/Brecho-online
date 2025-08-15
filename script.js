@@ -15,21 +15,21 @@ const STORAGE_KEYS = {
 };
 
 // --- CORREÇÃO CRÍTICA AQUI ---
-// Inicializa o cliente do Supabase da maneira correta
-const supabase = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
+// A variável que guarda nosso cliente se chama 'supabaseClient'
+// A função é chamada a partir do objeto global 'supabase' que vem do CDN
+const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY);
 
 // Variáveis de estado
 let currentUser = null;
-let roupas = []; // Será populado pelo Supabase
-let users = []; // Continua local por enquanto
-let cart = []; // Continua local por enquanto
-let reservations = []; // Continua local por enquanto
+let roupas = [];
+let users = [];
+let cart = [];
+let reservations = [];
 
 // ======================================================
 // INICIALIZAÇÃO
 // ======================================================
 document.addEventListener('DOMContentLoaded', async () => {
-    // A inicialização agora é assíncrona para esperar os dados do banco
     await loadData();
     setupEventListeners();
     updateUI();
@@ -37,14 +37,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // ======================================================
-// CARREGAMENTO DE DADOS
+// CARREGAMENTO E SALVAMENTO DE DADOS
 // ======================================================
 async function loadData() {
     showToast("Carregando achadinhos...", "info");
     
     // 1. Busca as roupas do Supabase
-    const { data, error } = await supabase
-        .from('roupas') // O nome da sua tabela no Supabase
+    const { data, error } = await supabaseClient // CORRIGIDO
+        .from('roupas')
         .select('*')
         .order('created_at', { ascending: false });
 
@@ -57,7 +57,7 @@ async function loadData() {
         showToast("Achadinhos carregados!", "success");
     }
 
-    // 2. Carrega o resto dos dados do localStorage (usuários, carrinho, etc.)
+    // 2. Carrega o resto dos dados do localStorage
     currentUser = JSON.parse(localStorage.getItem(STORAGE_KEYS.CURRENT_USER)) || null;
     cart = JSON.parse(localStorage.getItem(STORAGE_KEYS.CART)) || [];
     users = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || [];
@@ -160,7 +160,6 @@ function renderClothes() {
             wishlistButtonHtml = `<button class="wishlist-btn ${itemInWishlist ? 'active' : ''}" onclick="toggleWishlist(${roupa.id}, event)"><i class="fas fa-heart"></i></button>`;
         }
         
-        // --- CÓDIGO ATUALIZADO PARA USAR SUAS COLUNAS ---
         card.innerHTML = `
             <img src="${roupa.imagem_url}" class="roupa-image" alt="${roupa.nome}">
             ${wishlistButtonHtml}
@@ -180,11 +179,10 @@ function renderClothes() {
 function showToast(message, type = 'success') { const toast = document.getElementById('toast'); const toastMessage = document.getElementById('toastMessage'); toastMessage.textContent = message; toast.className = `toast show ${type}`; setTimeout(() => { toast.classList.add('hidden'); }, 3000); }
 
 // ======================================================
-// AUTENTICAÇÃO E ADMIN (Usando localStorage por enquanto)
+// AUTENTICAÇÃO E ADMIN (Funções de login/cadastro locais)
 // ======================================================
 function handleLogoClick() { if (currentUser && !currentUser.isAdmin) { showModal('loginModal'); } else if (!currentUser) { showToast("Faça login como cliente para solicitar acesso de admin.", "info"); } }
-function handleAdminLogin(e) { e.preventDefault(); /* ...código existente... */ }
-
+function handleAdminLogin(e) { e.preventDefault(); /* Lógica de elevação de privilégios */ }
 function handleClientLogin(e) {
     e.preventDefault();
     const email = document.getElementById('clientLoginEmail').value;
@@ -201,7 +199,6 @@ function handleClientLogin(e) {
         showToast('Email ou senha incorretos!', 'error');
     }
 }
-
 function handleRegister(e) {
     e.preventDefault();
     const name = document.getElementById('registerName').value;
@@ -222,35 +219,31 @@ function handleRegister(e) {
     updateAndRenderAll();
     showToast('Cadastro realizado com sucesso!', 'success');
 }
-
 function logout() { currentUser = null; localStorage.removeItem(STORAGE_KEYS.CURRENT_USER); updateAndRenderAll(); showToast('Você saiu da sua conta.', 'info'); }
-function showAddRoupaModal() { /* Lógica futura para adicionar ao Supabase */ }
-function showEditRoupaModal(roupa) { /* Lógica futura para editar no Supabase */ }
-function handleRoupaSubmit(e) { e.preventDefault(); /* Lógica futura para salvar no Supabase */ }
-function confirmDelete(id) { /* Lógica futura para deletar do Supabase */ }
 
 // ======================================================
-// PERFIL, ABAS E FAVORITOS (Usando localStorage por enquanto)
+// Demais funções (CRUD de Roupas, Perfil, Carrinho, etc.)
+// Estas funções ainda operam com dados locais e precisarão ser
+// migradas para usar o Supabase nos próximos passos.
 // ======================================================
+function showAddRoupaModal() { /* ... */ }
+function showEditRoupaModal(roupa) { /* ... */ }
+function handleRoupaSubmit(e) { /* ... */ }
+function confirmDelete(id) { /* ... */ }
 function showProfileModal() { if (!currentUser) { showToast("Faça login para ver seu perfil.", "error"); return; } document.getElementById('profileName').value = currentUser.name; document.getElementById('profileEmail').value = currentUser.email; openTab({currentTarget: document.querySelector('.tab-link')}, 'tabDados'); showModal('profileModal'); }
 function handleProfileUpdate(e) { e.preventDefault(); const name = document.getElementById('profileName').value; const userDb = users.find(u => u.email === currentUser.email); if(userDb) { userDb.name = name; currentUser.name = name; saveUsers(); localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUser)); updateUI(); } showToast('Perfil atualizado!', 'success'); }
 function openTab(evt, tabName) { document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active')); document.getElementById(tabName).style.display = 'block'; evt.currentTarget.classList.add('active'); if (tabName === 'tabFavoritos') renderWishlist(); if (tabName === 'tabReservas') renderMyReservations(); }
 function renderWishlist() { const c = document.getElementById('profileWishlist'); c.innerHTML = ''; if (!currentUser?.wishlist?.length) { c.innerHTML = "<p>Sua lista de favoritos está vazia.</p>"; return; } const items = roupas.filter(r => currentUser.wishlist.includes(r.id)); if (items.length === 0) { c.innerHTML = "<p>Nenhum favorito encontrado.</p>"; return; } items.forEach(r => { const card = document.createElement('div'); card.className = 'roupa-card'; card.innerHTML = `<img src="${r.imagem_url}" class="roupa-image"><div class="roupa-info"><h3 class="roupa-nome">${r.nome}</h3></div>`; c.appendChild(card); }); }
 function toggleWishlist(id, e) { e.stopPropagation(); if (!currentUser || currentUser.isAdmin) return; const user = users.find(u => u.email === currentUser.email); if (!user) return; if (!user.wishlist) user.wishlist = []; const index = user.wishlist.indexOf(id); if (index > -1) { user.wishlist.splice(index, 1); showToast("Removido dos favoritos.", "info"); } else { user.wishlist.push(id); showToast("Adicionado aos favoritos!", "success"); } currentUser.wishlist = user.wishlist; localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUser)); saveUsers(); renderClothes(); }
-
-// ======================================================
-// CARRINHO E RESERVAS (Usando localStorage por enquanto)
-// ======================================================
 function renderCart() { const c = document.getElementById('cartItems'); const t = document.getElementById('cartTotalItems'); c.innerHTML = ''; if (cart.length === 0) { c.innerHTML = `<div class="empty-cart"><i class="fas fa-shopping-cart"></i><h3>Seu carrinho está vazio</h3></div>`; } else { cart.forEach(i => { const item = document.createElement('div'); item.className = 'cart-item'; item.innerHTML = `<img src="${i.imagem_url}" class="cart-item-image"><div class="cart-item-info"><div class="cart-item-name">${i.nome}</div><div class="cart-item-price">R$ ${parseFloat(i.preco).toFixed(2)}</div></div><button class="btn btn-danger btn-small" onclick="removeFromCartAndUpdate(${i.id})"><i class="fas fa-trash"></i></button>`; c.appendChild(item); }); } t.textContent = cart.length; }
 function openCart() { renderCart(); showModal('cartModal'); }
 function updateCartCount() { document.getElementById('cartCount').textContent = cart.length; }
 function clearCart() { if (cart.length === 0) return; cart = []; saveCart(); updateCartCount(); renderClothes(); renderCart(); showToast('Carrinho esvaziado!', 'success'); }
 function toggleReserva(id) { if (!currentUser || currentUser.isAdmin) return; const r = roupas.find(rp => rp.id === id); if (!r || r.status === 'reservado') return; const index = cart.findIndex(i => i.id === id); if (index > -1) { cart.splice(index, 1); } else { cart.push(r); } saveCart(); updateCartCount(); renderClothes(); }
 function removeFromCartAndUpdate(id) { const i = cart.findIndex(item => item.id === id); if (i > -1) { cart.splice(i, 1); saveCart(); updateCartCount(); renderClothes(); renderCart(); showToast('Item removido.', 'info'); } }
-function checkout() { /* Lógica futura para salvar no Supabase */ }
-function cancelReservation(resId) { /* Lógica futura para atualizar no Supabase */ }
-function renderMyReservations() { /* ... Lógica existente ... */ }
-
+function checkout() { /* ... */ }
+function cancelReservation(resId) { /* ... */ }
+function renderMyReservations() { /* ... */ }
 // ======================================================
 // FUNÇÕES GLOBAIS (PARA ONCLICK NO HTML)
 // ======================================================
