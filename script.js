@@ -160,7 +160,30 @@ function showToast(message, type = 'success') { const toast = document.getElemen
 // AUTENTICAÇÃO E ADMIN
 // ======================================================
 function handleLogoClick() { if (currentUser && !currentUser.isAdmin) { showModal('loginModal'); } else if (!currentUser) { showToast("Faça login para solicitar acesso de admin.", "info"); } }
-function handleAdminLogin(e) { e.preventDefault(); const password = document.getElementById('loginPassword').value; if (password === CONFIG.ADMIN_PASSWORD) { currentUser.isAdmin = true; localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUser)); hideModal('loginModal'); updateAndRenderAll(); showToast(`Privilégios de admin concedidos!`, 'success'); } else { showToast('Senha de administrador incorreta!', 'error'); } }
+
+function handleAdminLogin(e) {
+    e.preventDefault();
+    const password = document.getElementById('loginPassword').value;
+    if (password === CONFIG.ADMIN_PASSWORD) {
+        const userEmail = currentUser.email;
+        const userReservations = reservations.filter(res => res.userEmail === userEmail);
+        
+        if (userReservations.length > 0) {
+            // Esta lógica ainda precisa ser migrada para o Supabase
+            showToast("Suas reservas pessoais foram canceladas ao se tornar admin.", "info");
+        }
+
+        currentUser.isAdmin = true;
+        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUser));
+        
+        hideModal('loginModal');
+        updateAndRenderAll();
+        showToast(`Privilégios de admin concedidos para ${currentUser.name}!`, 'success');
+    } else {
+        showToast('Senha de administrador incorreta!', 'error');
+    }
+}
+
 function handleClientLogin(e) { e.preventDefault(); const email = document.getElementById('clientLoginEmail').value; const password = document.getElementById('clientLoginPassword').value; const currentUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || []; const foundUser = currentUsers.find(user => user.email === email && user.password === password); if (foundUser) { currentUser = foundUser; localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUser)); hideModal('clientLoginModal'); updateAndRenderAll(); showToast(`Bem-vindo(a) de volta, ${currentUser.name}!`, 'success'); } else { showToast('Email ou senha incorretos!', 'error'); } }
 function handleRegister(e) { e.preventDefault(); const name = document.getElementById('registerName').value; const email = document.getElementById('registerEmail').value; const password = document.getElementById('registerPassword').value; const currentUsers = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS)) || []; if (currentUsers.some(u => u.email === email)) { showToast('Este email já está cadastrado.', 'error'); return; } const newUser = { name, email, password, isAdmin: false, wishlist: [] }; currentUsers.push(newUser); users = currentUsers; saveUsers(); currentUser = newUser; localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(currentUser)); hideModal('registerModal'); updateAndRenderAll(); showToast('Cadastro realizado com sucesso!', 'success'); }
 function logout() { currentUser = null; localStorage.removeItem(STORAGE_KEYS.CURRENT_USER); updateAndRenderAll(); showToast('Você saiu da sua conta.', 'info'); }
@@ -228,8 +251,42 @@ function updateCartCount() { document.getElementById('cartCount').textContent = 
 function clearCart() { if (cart.length === 0) return; cart = []; saveCart(); updateCartCount(); renderClothes(); renderCart(); showToast('Carrinho esvaziado!', 'success'); }
 function toggleReserva(id) { if (!currentUser || currentUser.isAdmin) return; const r = roupas.find(rp => rp.id === id); if (!r || r.status === 'reservado') return; const index = cart.findIndex(i => i.id === id); if (index > -1) { cart.splice(index, 1); } else { cart.push(r); } saveCart(); updateCartCount(); renderClothes(); }
 function removeFromCartAndUpdate(id) { const i = cart.findIndex(item => item.id === id); if (i > -1) { cart.splice(i, 1); saveCart(); updateCartCount(); renderClothes(); renderCart(); showToast('Item removido.', 'info'); } }
-function checkout() { if (!currentUser) return; if (cart.length === 0) { showToast('Seu carrinho está vazio!', 'error'); return; } const count = cart.length; cart.forEach(item => { reservations.push({ id: Date.now() + Math.random(), userEmail: currentUser.email, reservedAt: new Date().toISOString(), roupa: item }); const r = roupas.find(rp => rp.id === item.id); if (r) r.status = 'reservado'; }); cart = []; saveCart(); saveReservations(); updateAndRenderAll(); renderCart(); showToast(`${count} peça(s) reservada(s)!`, 'success'); }
-function cancelReservation(resId) { const index = reservations.findIndex(r => r.id === resId); if (index === -1) return; const roupaId = reservations[index].roupa.id; reservations.splice(index, 1); const r = roupas.find(rp => rp.id === roupaId); if (r) r.status = 'disponivel'; saveReservations(); renderMyReservations(); renderClothes(); showToast('Reserva cancelada.', 'info'); }
+
+function checkout() {
+    if (!currentUser) return;
+    if (cart.length === 0) {
+        showToast('Seu carrinho está vazio!', 'error');
+        return;
+    }
+    const count = cart.length;
+    // Esta parte precisará ser migrada para o Supabase
+    cart.forEach(item => {
+        reservations.push({ id: Date.now() + Math.random(), userEmail: currentUser.email, reservedAt: new Date().toISOString(), roupa: item });
+        const r = roupas.find(rp => rp.id === item.id);
+        if (r) r.status = 'reservado'; // Isso só afeta a visualização atual, não salva no DB
+    });
+    cart = [];
+    saveCart();
+    saveReservations();
+    updateAndRenderAll();
+    renderCart();
+    showToast(`${count} peça(s) reservada(s)!`, 'success');
+}
+
+function cancelReservation(resId) {
+    // Esta parte precisará ser migrada para o Supabase
+    const index = reservations.findIndex(r => r.id === resId);
+    if (index === -1) return;
+    const roupaId = reservations[index].roupa.id;
+    reservations.splice(index, 1);
+    const r = roupas.find(rp => rp.id === roupaId);
+    if (r) r.status = 'disponivel';
+    saveReservations();
+    renderMyReservations();
+    renderClothes();
+    showToast('Reserva cancelada.', 'info');
+}
+
 function renderMyReservations() { const c = document.getElementById('profileReservations'); c.innerHTML = ''; if (!currentUser) return; const myRes = reservations.filter(r => r.userEmail === currentUser.email); if (myRes.length === 0) { c.innerHTML = '<p>Você não tem reservas ativas.</p>'; return; } myRes.forEach(r => { const i = document.createElement('div'); i.className = 'reservation-item'; const d = new Date(r.reservedAt).toLocaleDateString('pt-BR'); i.innerHTML = `<img src="${r.roupa.imagem_url}" class="reservation-item-image"><div class="reservation-item-info"><div class="reservation-item-name">${r.roupa.nome}</div><div class="reservation-item-date">Reservado em: ${d}</div></div><button class="btn btn-danger btn-small" onclick="cancelReservation(${r.id})"><i class="fas fa-times"></i></button>`; c.appendChild(i); }); }
 
 // ======================================================
