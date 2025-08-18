@@ -76,8 +76,6 @@ function setupEventListeners() {
     document.getElementById('clearCartBtn').addEventListener('click', clearCart);
     document.getElementById('checkoutBtn').addEventListener('click', checkout);
     document.getElementById('switchToRegister').addEventListener('click', () => { hideModal('clientLoginModal'); showModal('registerModal'); });
-    
-    // --- OUVINTES DOS FILTROS RESTAURADOS ---
     document.getElementById('searchBtn').addEventListener('click', renderClothes);
     document.getElementById('searchInput').addEventListener('keyup', (e) => { if (e.key === 'Enter') renderClothes(); });
     document.getElementById('categoryFilter').addEventListener('change', renderClothes);
@@ -124,18 +122,16 @@ function getFilteredClothes() {
     return roupas.filter(roupa => {
         if (roupa.status === 'vendido') return false;
         const matchSearch = searchTerm ? roupa.nome.toLowerCase().includes(searchTerm) : true;
-        // A tabela não tem categoria, então este filtro é removido por enquanto
-        // const matchCategory = category ? roupa.categoria === category : true; 
+        const matchCategory = category ? roupa.categoria === category : true;
         const matchSize = size ? roupa.tamanho === size : true;
         let matchPrice = true;
         if (priceRange) {
             const [min, max] = priceRange.split('-').map(Number);
             matchPrice = roupa.preco >= min && roupa.preco <= max;
         }
-        return matchSearch && matchSize && matchPrice;
+        return matchSearch && matchCategory && matchSize && matchPrice;
     });
 }
-
 
 function renderClothes() {
     const container = document.getElementById('clothesContainer');
@@ -160,6 +156,7 @@ function renderClothes() {
 
         let adminButtonsHtml = '';
         if (currentUser && currentUser.isAdmin) {
+            // --- CORREÇÃO AQUI: Passa o ID como número, não como objeto stringificado ---
             adminButtonsHtml = `<button class="btn btn-primary btn-small" onclick='showEditRoupaModal(${roupa.id})'><i class="fas fa-edit"></i> Editar</button>
                                 <button class="btn btn-danger btn-small" onclick='confirmDelete(${roupa.id})'><i class="fas fa-trash"></i> Excluir</button>`;
         }
@@ -246,9 +243,16 @@ async function deleteRoupa(roupaId) {
 function confirmDelete(id) { const r = roupas.find(rp => rp.id === id); if (!r) return; document.getElementById('confirmMessage').textContent = `Tem certeza que deseja excluir "${r.nome}"?`; showModal('confirmModal'); const yesBtn = document.getElementById('confirmYes'); const newYesBtn = yesBtn.cloneNode(true); yesBtn.parentNode.replaceChild(newYesBtn, yesBtn); newYesBtn.onclick = () => { deleteRoupa(id); hideModal('confirmModal'); }; document.getElementById('confirmNo').onclick = () => hideModal('confirmModal'); }
 function showAddRoupaModal() { document.getElementById('roupaModalTitle').textContent = 'Adicionar Roupa'; document.getElementById('roupaForm').reset(); document.getElementById('roupaId').value = ''; showModal('roupaModal'); }
 
+// --- FUNÇÃO CORRIGIDA ---
 function showEditRoupaModal(roupaId) {
-    const roupa = roupas.find(r => r.id === roupaId);
-    if (!roupa) return;
+    // Busca a roupa pelo ID na lista de roupas já carregada
+    const roupa = roupas.find(r => r.id == roupaId); // Usar '==' para flexibilidade de tipo (número vs string)
+    if (!roupa) {
+        console.error("Roupa não encontrada para edição:", roupaId);
+        showToast("Erro: roupa não encontrada.", "error");
+        return;
+    }
+    
     document.getElementById('roupaModalTitle').textContent = 'Editar Roupa';
     document.getElementById('roupaId').value = roupa.id;
     document.getElementById('roupaNome').value = roupa.nome;
