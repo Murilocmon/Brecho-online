@@ -16,9 +16,9 @@ let currentUser = null, roupas = [], cart = [], reservations = [];
 // INICIALIZAÇÃO
 // ======================================================
 document.addEventListener('DOMContentLoaded', async () => {
-    await checkUserSession(); // Autenticação primeiro
-    await loadRoupasFromDB(); // Depois as roupas
-    loadLocalData(); // Por fim, dados locais como carrinho
+    await checkUserSession();
+    await loadRoupasFromDB();
+    loadLocalData();
     setupEventListeners();
     updateUI();
     renderClothes();
@@ -29,8 +29,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ======================================================
 async function checkUserSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) {
-        const { data: profile } = await supabaseClient.from('perfis').select('name, wishlist').eq('id', session.user.id).single();
+    if (session && session.user) {
+        const { data: profile, error } = await supabaseClient
+            .from('perfis')
+            .select('name, wishlist')
+            .eq('id', session.user.id)
+            .single();
+        
         if (profile) {
             currentUser = {
                 id: session.user.id,
@@ -39,19 +44,17 @@ async function checkUserSession() {
                 wishlist: profile.wishlist || [],
                 isAdmin: false
             };
+        } else {
+            await supabaseClient.auth.signOut();
+            currentUser = null;
         }
     } else {
         currentUser = null;
     }
 }
-async function loadRoupasFromDB() {
-    const { data, error } = await supabaseClient.from('roupas').select('*').order('created_at', { ascending: false });
-    roupas = error ? [] : data;
-}
-function loadLocalData() {
-    cart = JSON.parse(localStorage.getItem(STORAGE_KEYS.CART)) || [];
-    reservations = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESERVATIONS)) || [];
-}
+
+async function loadRoupasFromDB() { const { data, error } = await supabaseClient.from('roupas').select('*').order('created_at', { ascending: false }); if (error) { console.error("Erro ao buscar roupas:", error); roupas = []; } else { roupas = data; } }
+function loadLocalData() { cart = JSON.parse(localStorage.getItem(STORAGE_KEYS.CART)) || []; reservations = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESERVATIONS)) || []; }
 function saveCart() { localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart)); }
 function saveReservations() { localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify(reservations)); }
 
@@ -78,22 +81,31 @@ async function handleRegister(e) {
     const email = document.getElementById('registerEmail').value;
     const password = document.getElementById('registerPassword').value;
     showToast("Cadastrando...", "info");
-    const { error } = await supabaseClient.auth.signUp({
-        email, password, options: { data: { name } }
+
+    // 1. Cria o usuário no sistema de autenticação do Supabase
+    const { data, error: signUpError } = await supabaseClient.auth.signUp({
+        email, password, options: { data: { name } } // Passa o nome para o trigger usar
     });
-    if (error) {
-        showToast(`Erro no cadastro: ${error.message}`, 'error');
-    } else {
-        showToast('Cadastro realizado! Por favor, faça o login.', 'success');
-        hideModal('registerModal');
+
+    if (signUpError) {
+        showToast(`Erro no cadastro: ${signUpError.message}`, 'error');
+        return;
     }
+    
+    // 2. Se chegou aqui, o trigger no Supabase já criou o perfil básico.
+    // Apenas informamos o sucesso e pedimos para o usuário logar.
+    showToast('Cadastro realizado! Por favor, faça o login.', 'success');
+    hideModal('registerModal');
+    document.getElementById('registerForm').reset();
 }
+
 async function handleClientLogin(e) {
     e.preventDefault();
     const email = document.getElementById('clientLoginEmail').value;
     const password = document.getElementById('clientLoginPassword').value;
     showToast("Entrando...", "info");
     const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
     if (error) {
         showToast(`Erro no login: ${error.message}`, 'error');
     } else {
@@ -103,6 +115,7 @@ async function handleClientLogin(e) {
         showToast(`Bem-vindo(a) de volta, ${currentUser.name}!`, 'success');
     }
 }
+
 async function logout() { const { error } = await supabaseClient.auth.signOut(); if (error) { showToast(`Erro ao sair: ${error.message}`, 'error'); } else { currentUser = null; updateAndRenderAll(); showToast('Você saiu da sua conta.', 'info'); } }
 function handleLogoClick() { if (currentUser && !currentUser.isAdmin) { showModal('loginModal'); } else if (!currentUser) { showToast("Faça login para solicitar acesso de admin.", "info"); } }
 function handleAdminLogin(e) { e.preventDefault(); const password = document.getElementById('loginPassword').value; if (password === CONFIG.ADMIN_PASSWORD) { currentUser.isAdmin = true; hideModal('loginModal'); updateAndRenderAll(); showToast(`Privilégios de admin concedidos!`, 'success'); } else { showToast('Senha de administrador incorreta!', 'error'); } }
