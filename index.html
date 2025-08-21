@@ -4,9 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Achadinhos - Brechó Online</title>
+    
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@supabase/auth-ui-shared@0.1.6/dist/bundle.js"></script>
+    
     <link rel="stylesheet" href="styles.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <header class="header">
@@ -16,83 +18,38 @@
                 <p>Brechó Online</p>
             </div>
             <nav class="nav">
-                <button id="cartBtn" class="btn btn-secondary cart-btn">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span id="cartCount" class="cart-count">0</span>
-                    <span class="cart-text">Carrinho</span>
-                </button>
                 <div id="userSection" class="user-section hidden">
                     <span id="userGreeting" class="user-greeting">Olá, Usuário</span>
-                    <button id="profileBtn" class="btn btn-secondary">
-                        <i class="fas fa-user"></i> Perfil
-                    </button>
                     <button id="logoutBtn" class="btn btn-danger">
                         <i class="fas fa-sign-out-alt"></i> Sair
                     </button>
                 </div>
-                <button id="registerBtn" class="btn btn-primary">Cadastro</button>
-                <button id="clientLoginBtn" class="btn btn-secondary">Login Cliente</button>
+                <button id="authBtn" class="btn btn-primary">Entrar / Cadastrar</button>
             </nav>
         </div>
     </header>
 
     <main class="main">
         <div class="container">
-            <section class="search-section">
-                <div class="search-container">
-                    <input type="text" id="searchInput" placeholder="Pesquisar por nome..." class="search-input">
-                    <button id="searchBtn" class="search-btn"><i class="fas fa-search"></i></button>
+            <h2 id="welcomeMessage" class="welcome-message hidden">Nossos Achadinhos</h2>
+            <div id="clothesContainer" class="clothes-container">
                 </div>
-                <div class="filters-container">
-                    <select id="categoryFilter" class="filter-select">
-                        <option value="">Todas as Categorias</option>
-                        <option value="Camisetas">Camisetas</option><option value="Calças">Calças</option><option value="Vestidos">Vestidos</option><option value="Casacos">Casacos</option><option value="Saias">Saias</option><option value="Acessórios">Acessórios</option>
-                    </select>
-                    <select id="sizeFilter" class="filter-select">
-                        <option value="">Todos os Tamanhos</option>
-                        <option value="PP">PP</option><option value="P">P</option><option value="M">M</option><option value="G">G</option><option value="GG">GG</option><option value="XG">XG</option>
-                    </select>
-                    <select id="priceFilter" class="filter-select">
-                        <option value="">Qualquer Preço</option>
-                        <option value="0-25">Até R$ 25</option>
-                        <option value="25-50">R$ 25 - R$ 50</option>
-                        <option value="50-100">R$ 50 - R$ 100</option>
-                        <option value="100-9999">Acima de R$ 100</option>
-                    </select>
-                    <button id="clearFiltersBtn" class="btn btn-secondary btn-small">Limpar Filtros</button>
-                </div>
-            </section>
-
-            <section id="adminPanel" class="admin-panel hidden">
-                <div class="admin-header">
-                    <h2>Painel Administrativo</h2>
-                    <button id="addRoupaBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Adicionar Roupa</button>
-                </div>
-                <div id="adminDashboard" class="dashboard"></div>
-                <div class="admin-management">
-                    <h3>Reservas Ativas (<span id="activeReservationsCount">0</span>)</h3>
-                    <div id="adminReservationsList" class="admin-list-container">
-                        </div>
-                </div>
-            </section>
-
-            <section class="clothes-grid">
-                <div id="clothesContainer" class="clothes-container"></div>
-            </section>
         </div>
     </main>
     
-    <div id="loginModal" class="modal hidden"><div class="modal-content"><div class="modal-header"><h2>Acesso Administrativo</h2><button class="close-btn" id="closeLoginModal">&times;</button></div><form id="loginForm" class="form"><p>Digite a senha para elevar seus privilégios.</p><div class="form-group"><label for="loginPassword">Senha de Admin:</label><input type="password" id="loginPassword" required></div><button type="submit" class="btn btn-primary">Elevar</button></form></div></div>
-    <div id="clientLoginModal" class="modal hidden"><div class="modal-content"><div class="modal-header"><h2>Login de Cliente</h2><button class="close-btn" id="closeClientLoginModal">&times;</button></div><form id="clientLoginForm" class="form"><div class="form-group"><label for="clientLoginEmail">Email:</label><input type="email" id="clientLoginEmail" required></div><div class="form-group"><label for="clientLoginPassword">Senha:</label><input type="password" id="clientLoginPassword" required></div><button type="submit" class="btn btn-primary">Entrar</button></form><div class="form-footer"><p>Não tem conta? <button type="button" class="btn-link" id="switchToRegister">Cadastre-se</button></p></div></div></div>
-    <div id="registerModal" class="modal hidden"><div class="modal-content"><div class="modal-header"><h2>Cadastro</h2><button class="close-btn" id="closeRegisterModal">&times;</button></div><form id="registerForm" class="form"><div class="form-group"><label for="registerName">Nome:</label><input type="text" id="registerName" required></div><div class="form-group"><label for="registerEmail">Email:</label><input type="email" id="registerEmail" required></div><div class="form-group"><label for="registerPassword">Senha:</label><input type="password" id="registerPassword" required></div><button type="submit" class="btn btn-primary">Cadastrar</button></form></div></div>
-    <div id="roupaModal" class="modal hidden"><div class="modal-content"><div class="modal-header"><h2 id="roupaModalTitle">Adicionar Roupa</h2><button class="close-btn" id="closeRoupaModal">&times;</button></div><form id="roupaForm" class="form"><input type="hidden" id="roupaId"><div class="form-group"><label for="roupaNome">Nome:</label><input type="text" id="roupaNome" required></div><div class="form-group"><label for="roupaDescricao">Descrição:</label><textarea id="roupaDescricao" required></textarea></div><div class="form-group"><label for="roupaTamanho">Tamanho:</label><select id="roupaTamanho" required><option value="">Selecione</option><option value="PP">PP</option><option value="P">P</option><option value="M">M</option><option value="G">G</option><option value="GG">GG</option><option value="XG">XG</option></select></div><div class="form-group"><label for="roupaPreco">Preço (R$):</label><input type="number" id="roupaPreco" step="0.01" min="0" required></div><div class="form-group"><label for="roupaCategoria">Categoria:</label><select id="roupaCategoria" required><option value="">Selecione</option><option value="Camisetas">Camisetas</option><option value="Calças">Calças</option><option value="Vestidos">Vestidos</option><option value="Casacos">Casacos</option><option value="Saias">Saias</option><option value="Acessórios">Acessórios</option></select></div><div class="form-group"><label for="roupaImagem">URL da Imagem:</label><input type="url" id="roupaImagem" required></div><button type="submit" class="btn btn-primary">Salvar</button></form></div></div>
-    <div id="confirmModal" class="modal hidden"><div class="modal-content"><div class="modal-header"><h2>Confirmar Ação</h2><button class="close-btn" id="closeConfirmModal">&times;</button></div><div class="modal-body"><p id="confirmMessage"></p></div><div class="modal-actions"><button id="confirmYes" class="btn btn-danger">Sim</button><button id="confirmNo" class="btn btn-secondary">Não</button></div></div></div>
-    <div id="cartModal" class="modal hidden"><div class="modal-content cart-modal"><div class="modal-header"><h2><i class="fas fa-shopping-cart"></i> Meu Carrinho</h2><button class="close-btn" id="closeCartModal">&times;</button></div><div class="cart-content"><div id="cartItems" class="cart-items"></div><div class="cart-summary"><div class="cart-total"><span>Total de Itens:</span><span id="cartTotalItems">0</span></div><div class="cart-actions"><button id="clearCartBtn" class="btn btn-danger"><i class="fas fa-trash"></i> Limpar</button><button id="checkoutBtn" class="btn btn-primary"><i class="fas fa-check"></i> Finalizar Reservas</button></div></div></div></div></div>
-    <div id="quickViewModal" class="modal hidden"><div class="modal-content quick-view-modal"><div class="modal-header"><h2 id="quickViewNome"></h2><button class="close-btn" id="closeQuickViewModal">&times;</button></div><div id="quickViewContent" class="quick-view-content"></div></div></div>
-    <div id="profileModal" class="modal hidden"><div class="modal-content"><div class="modal-header"><h2><i class="fas fa-user"></i> Meu Perfil</h2><button class="close-btn" id="closeProfileModal">&times;</button></div><div class="profile-tabs"><button class="tab-link active" onclick="openTab(event, 'tabDados')">Meus Dados</button><button class="tab-link" onclick="openTab(event, 'tabReservas')">Minhas Reservas</button><button class="tab-link" onclick="openTab(event, 'tabFavoritos')">Meus Favoritos</button></div><div id="tabDados" class="tab-content" style="display: block;"><form id="profileForm" class="form"><div class="form-group"><label for="profileName">Nome:</label><input type="text" id="profileName" required></div><div class="form-group"><label for="profileEmail">Email:</label><input type="email" id="profileEmail" required readonly></div><button type="submit" class="btn btn-primary">Atualizar Perfil</button></form></div><div id="tabReservas" class="tab-content"><div id="profileReservations" class="reservations-container"></div></div><div id="tabFavoritos" class="tab-content"><div id="profileWishlist" class="clothes-container profile-grid"></div></div></div></div>
+    <div id="authModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Acesse sua Conta</h2>
+                <button class="close-btn" id="closeAuthModal">&times;</button>
+            </div>
+            <div id="supabaseAuthContainer"></div>
+        </div>
+    </div>
 
     <div id="toast" class="toast hidden"><span id="toastMessage"></span></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js"></script>
 </body>
-
 </html>
