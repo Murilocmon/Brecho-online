@@ -16,6 +16,7 @@ let currentUser = null, roupas = [], cart = [], reservations = [];
 // INICIALIZAÇÃO
 // ======================================================
 document.addEventListener('DOMContentLoaded', async () => {
+    listenToAuthState(); // ATIVADO: Começa a escutar eventos de auth
     await checkUserSession();
     await loadRoupasFromDB();
     loadLocalData();
@@ -30,30 +31,21 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function checkUserSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session && session.user) {
-        const { data: profile, error } = await supabaseClient
-            .from('perfis')
-            .select('name, wishlist')
-            .eq('id', session.user.id)
-            .single();
-        
+        const { data: profile } = await supabaseClient.from('perfis').select('name, wishlist').eq('id', session.user.id).single();
         if (profile) {
             currentUser = {
                 id: session.user.id,
                 email: session.user.email,
                 name: profile.name,
                 wishlist: profile.wishlist || [],
-                isAdmin: false
+                isAdmin: false 
             };
-        } else {
-            await supabaseClient.auth.signOut();
-            currentUser = null;
         }
     } else {
         currentUser = null;
     }
 }
-
-async function loadRoupasFromDB() { const { data, error } = await supabaseClient.from('roupas').select('*').order('created_at', { ascending: false }); if (error) { console.error("Erro ao buscar roupas:", error); roupas = []; } else { roupas = data; } }
+async function loadRoupasFromDB() { const { data, error } = await supabaseClient.from('roupas').select('*').order('created_at', { ascending: false }); roupas = error ? [] : data; }
 function loadLocalData() { cart = JSON.parse(localStorage.getItem(STORAGE_KEYS.CART)) || []; reservations = JSON.parse(localStorage.getItem(STORAGE_KEYS.RESERVATIONS)) || []; }
 function saveCart() { localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart)); }
 function saveReservations() { localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JSON.stringify(reservations)); }
@@ -61,7 +53,45 @@ function saveReservations() { localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JS
 // ======================================================
 // EVENT LISTENERS E UI
 // ======================================================
-function setupEventListeners() { document.getElementById('logo').addEventListener('click', handleLogoClick); document.getElementById('registerBtn').addEventListener('click', () => showModal('registerModal')); document.getElementById('clientLoginBtn').addEventListener('click', () => showModal('clientLoginModal')); document.getElementById('cartBtn').addEventListener('click', openCart); document.getElementById('profileBtn').addEventListener('click', showProfileModal); document.getElementById('addRoupaBtn').addEventListener('click', showAddRoupaModal); document.getElementById('closeLoginModal').addEventListener('click', () => hideModal('loginModal')); document.getElementById('closeClientLoginModal').addEventListener('click', () => hideModal('clientLoginModal')); document.getElementById('closeRegisterModal').addEventListener('click', () => hideModal('registerModal')); document.getElementById('closeRoupaModal').addEventListener('click', () => hideModal('roupaModal')); document.getElementById('closeConfirmModal').addEventListener('click', () => hideModal('confirmModal')); document.getElementById('closeCartModal').addEventListener('click', () => hideModal('cartModal')); document.getElementById('closeProfileModal').addEventListener('click', () => hideModal('profileModal')); document.getElementById('closeQuickViewModal').addEventListener('click', () => hideModal('quickViewModal')); document.querySelectorAll('.modal').forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) hideModal(modal.id); })); document.getElementById('loginForm').addEventListener('submit', handleAdminLogin); document.getElementById('clientLoginForm').addEventListener('submit', handleClientLogin); document.getElementById('registerForm').addEventListener('submit', handleRegister); document.getElementById('roupaForm').addEventListener('submit', handleRoupaSubmit); document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate); document.getElementById('logoutBtn').addEventListener('click', logout); document.getElementById('clearCartBtn').addEventListener('click', clearCart); document.getElementById('checkoutBtn').addEventListener('click', checkout); document.getElementById('switchToRegister').addEventListener('click', () => { hideModal('clientLoginModal'); showModal('registerModal'); }); document.getElementById('searchBtn').addEventListener('click', renderClothes); document.getElementById('searchInput').addEventListener('keyup', (e) => { if (e.key === 'Enter') renderClothes(); }); document.getElementById('categoryFilter').addEventListener('change', renderClothes); document.getElementById('sizeFilter').addEventListener('change', renderClothes); document.getElementById('priceFilter').addEventListener('change', renderClothes); document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters); }
+function setupEventListeners() { 
+    document.getElementById('logo').addEventListener('click', handleLogoClick);
+    document.getElementById('registerBtn').addEventListener('click', () => showModal('registerModal'));
+    document.getElementById('clientLoginBtn').addEventListener('click', () => showModal('clientLoginModal'));
+    document.getElementById('cartBtn').addEventListener('click', openCart);
+    document.getElementById('profileBtn').addEventListener('click', showProfileModal);
+    document.getElementById('addRoupaBtn').addEventListener('click', showAddRoupaModal);
+    document.getElementById('closeLoginModal').addEventListener('click', () => hideModal('loginModal'));
+    document.getElementById('closeClientLoginModal').addEventListener('click', () => hideModal('clientLoginModal'));
+    document.getElementById('closeRegisterModal').addEventListener('click', () => hideModal('registerModal'));
+    document.getElementById('closeRoupaModal').addEventListener('click', () => hideModal('roupaModal'));
+    document.getElementById('closeConfirmModal').addEventListener('click', () => hideModal('confirmModal'));
+    document.getElementById('closeCartModal').addEventListener('click', () => hideModal('cartModal'));
+    document.getElementById('closeProfileModal').addEventListener('click', () => hideModal('profileModal'));
+    document.getElementById('closeQuickViewModal').addEventListener('click', () => hideModal('quickViewModal'));
+    document.querySelectorAll('.modal').forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) hideModal(modal.id); }));
+    document.getElementById('loginForm').addEventListener('submit', handleAdminLogin);
+    document.getElementById('clientLoginForm').addEventListener('submit', handleClientLogin);
+    document.getElementById('registerForm').addEventListener('submit', handleRegister);
+    document.getElementById('roupaForm').addEventListener('submit', handleRoupaSubmit);
+    document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate);
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+    document.getElementById('clearCartBtn').addEventListener('click', clearCart);
+    document.getElementById('checkoutBtn').addEventListener('click', checkout);
+    document.getElementById('switchToRegister').addEventListener('click', () => { hideModal('clientLoginModal'); showModal('registerModal'); });
+    document.getElementById('searchBtn').addEventListener('click', renderClothes);
+    document.getElementById('searchInput').addEventListener('keyup', (e) => { if (e.key === 'Enter') renderClothes(); });
+    document.getElementById('categoryFilter').addEventListener('change', renderClothes);
+    document.getElementById('sizeFilter').addEventListener('change', renderClothes);
+    document.getElementById('priceFilter').addEventListener('change', renderClothes);
+    document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
+    
+    // NOVOS LISTENERS PARA REDEFINIÇÃO DE SENHA
+    document.getElementById('forgotPasswordBtn').addEventListener('click', () => { hideModal('clientLoginModal'); showModal('resetPasswordModal'); });
+    document.getElementById('closeResetPasswordModal').addEventListener('click', () => hideModal('resetPasswordModal'));
+    document.getElementById('resetPasswordForm').addEventListener('submit', handlePasswordResetRequest);
+    document.getElementById('closeUpdatePasswordModal').addEventListener('click', () => hideModal('updatePasswordModal'));
+    document.getElementById('updatePasswordForm').addEventListener('submit', handleUpdatePassword);
+}
 function showModal(modalId) { const modal = document.getElementById(modalId); if (modal) modal.classList.remove('hidden'); }
 function hideModal(modalId) { const modal = document.getElementById(modalId); if (modal) modal.classList.add('hidden'); }
 function updateAndRenderAll() { updateUI(); renderClothes(); }
@@ -75,50 +105,46 @@ function renderDashboard() { const d = document.getElementById('adminDashboard')
 // ======================================================
 // AUTENTICAÇÃO E ADMIN COM SUPABASE
 // ======================================================
-async function handleRegister(e) {
-    e.preventDefault();
-    const name = document.getElementById('registerName').value;
-    const email = document.getElementById('registerEmail').value;
-    const password = document.getElementById('registerPassword').value;
-    showToast("Cadastrando...", "info");
-
-    // 1. Cria o usuário no sistema de autenticação do Supabase
-    const { data, error: signUpError } = await supabaseClient.auth.signUp({
-        email, password, options: { data: { name } } // Passa o nome para o trigger usar
+function listenToAuthState() {
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        // Este evento é disparado quando o usuário clica no link do email
+        if (event === "PASSWORD_RECOVERY") {
+            hideModal('resetPasswordModal');
+            showModal('updatePasswordModal');
+        }
     });
-
-    if (signUpError) {
-        showToast(`Erro no cadastro: ${signUpError.message}`, 'error');
-        return;
-    }
-    
-    // 2. Se chegou aqui, o trigger no Supabase já criou o perfil básico.
-    // Apenas informamos o sucesso e pedimos para o usuário logar.
-    showToast('Cadastro realizado! Por favor, faça o login.', 'success');
-    hideModal('registerModal');
-    document.getElementById('registerForm').reset();
 }
-
-async function handleClientLogin(e) {
-    e.preventDefault();
-    const email = document.getElementById('clientLoginEmail').value;
-    const password = document.getElementById('clientLoginPassword').value;
-    showToast("Entrando...", "info");
-    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-
-    if (error) {
-        showToast(`Erro no login: ${error.message}`, 'error');
-    } else {
-        await checkUserSession();
-        hideModal('clientLoginModal');
-        updateAndRenderAll();
-        showToast(`Bem-vindo(a) de volta, ${currentUser.name}!`, 'success');
-    }
-}
-
+async function handleRegister(e) { e.preventDefault(); const name = document.getElementById('registerName').value; const email = document.getElementById('registerEmail').value; const password = document.getElementById('registerPassword').value; showToast("Cadastrando...", "info"); const { error } = await supabaseClient.auth.signUp({ email, password, options: { data: { name } } }); if (error) { showToast(`Erro no cadastro: ${error.message}`, 'error'); } else { showToast('Cadastro realizado! Verifique seu email para confirmar.', 'success'); hideModal('registerModal'); } }
+async function handleClientLogin(e) { e.preventDefault(); const email = document.getElementById('clientLoginEmail').value; const password = document.getElementById('clientLoginPassword').value; showToast("Entrando...", "info"); const { error } = await supabaseClient.auth.signInWithPassword({ email, password }); if (error) { showToast(`Erro no login: ${error.message}`, 'error'); } else { await checkUserSession(); hideModal('clientLoginModal'); updateAndRenderAll(); showToast(`Bem-vindo(a) de volta, ${currentUser.name}!`, 'success'); } }
 async function logout() { const { error } = await supabaseClient.auth.signOut(); if (error) { showToast(`Erro ao sair: ${error.message}`, 'error'); } else { currentUser = null; updateAndRenderAll(); showToast('Você saiu da sua conta.', 'info'); } }
 function handleLogoClick() { if (currentUser && !currentUser.isAdmin) { showModal('loginModal'); } else if (!currentUser) { showToast("Faça login para solicitar acesso de admin.", "info"); } }
 function handleAdminLogin(e) { e.preventDefault(); const password = document.getElementById('loginPassword').value; if (password === CONFIG.ADMIN_PASSWORD) { currentUser.isAdmin = true; hideModal('loginModal'); updateAndRenderAll(); showToast(`Privilégios de admin concedidos!`, 'success'); } else { showToast('Senha de administrador incorreta!', 'error'); } }
+async function handlePasswordResetRequest(e) {
+    e.preventDefault();
+    const email = document.getElementById('resetEmail').value;
+    showToast("Enviando link...", "info");
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.href, // Link mágico aponta de volta para a página atual
+    });
+    if (error) {
+        showToast(`Erro: ${error.message}`, "error");
+    } else {
+        showToast("Se o email estiver cadastrado, um link de recuperação foi enviado!", "success");
+        hideModal('resetPasswordModal');
+    }
+}
+async function handleUpdatePassword(e) {
+    e.preventDefault();
+    const newPassword = document.getElementById('newPassword').value;
+    showToast("Salvando nova senha...", "info");
+    const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
+    if (error) {
+        showToast(`Erro ao atualizar: ${error.message}`, "error");
+    } else {
+        showToast("Senha alterada com sucesso! Você já pode fazer o login.", "success");
+        hideModal('updatePasswordModal');
+    }
+}
 
 // ======================================================
 // PERFIL, ABAS E FAVORITOS COM SUPABASE
