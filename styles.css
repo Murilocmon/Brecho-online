@@ -25,7 +25,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-
 .btn-danger { background-color: #B00020; color: white; }
 .btn-danger:hover { background-color: #8B0000; }
 .btn-small { padding: 0.5rem 1rem; font-size: 0.9rem; }
-.btn-link { background: none; border: none; color: #D6A77A; text-decoration: underline; cursor: pointer; }
+.btn-link { background: none; border: none; color: #7A3E2E; text-decoration: underline; cursor: pointer; padding: 0; }
 .btn-success { background-color: #2e7d32; color: white; }
 .btn-success:hover { background-color: #1b5e20; }
 
@@ -112,6 +112,11 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-
 .profile-grid .roupa-card .roupa-image { height: 180px; }
 .profile-grid .roupa-card .roupa-info { padding: 1rem; }
 
+/* Toast */
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #4CAF50; color: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 1001; }
+.toast.error { background-color: #B00020; }
+.toast.info { background-color: #2196F3; }
+
 /* Rodapé */
 .footer { background-color: #7A3E2E; color: #FFF8F0; padding: 2rem 0; margin-top: 3rem; }
 .footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1.5rem; }
@@ -123,12 +128,7 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-
 .footer-copyright { text-align: right; font-size: 0.8rem; opacity: 0.8; }
 @media (max-width: 768px) { .footer .container { flex-direction: column; text-align: center; } .footer-copyright { text-align: center; margin-top: 1rem; } .footer-social { margin-top: 1rem; } }
 
-/* Toast */
-.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background-color: #4CAF50; color: white; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); z-index: 1001; }
-.toast.error { background-color: #B00020; }
-.toast.info { background-color: #2196F3; }
-
-/* === NOVO: Estilos para a Foto de Perfil === */
+/* Estilos para a Foto de Perfil */
 .avatar-small {
     width: 32px;
     height: 32px;
