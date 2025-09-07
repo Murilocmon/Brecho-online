@@ -166,6 +166,64 @@ async function toggleWishlist(id, e) { e.stopPropagation(); if (!currentUser || 
 function showProfileModal() { if (!currentUser) { showToast("Faça login para ver seu perfil.", "error"); return; } document.getElementById('profileName').value = currentUser.name; document.getElementById('profileEmail').value = currentUser.email; openTab({currentTarget: document.querySelector('.tab-link')}, 'tabDados'); showModal('profileModal'); }
 function openTab(evt, tabName) { document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active')); document.getElementById(tabName).style.display = 'block'; evt.currentTarget.classList.add('active'); if (tabName === 'tabFavoritos') renderWishlist(); if (tabName === 'tabReservas') renderMyReservations(); }
 function renderWishlist() { const c = document.getElementById('profileWishlist'); c.innerHTML = ''; if (!currentUser?.wishlist?.length) { c.innerHTML = "<p>Sua lista de favoritos está vazia.</p>"; return; } const items = roupas.filter(r => currentUser.wishlist.includes(r.id)); if (items.length === 0) { c.innerHTML = "<p>Nenhum favorito encontrado.</p>"; return; } items.forEach(r => { const card = document.createElement('div'); card.className = 'roupa-card'; card.innerHTML = `<img src="${r.imagem}" class="roupa-image" onclick="showQuickView(${r.id})"><div class="roupa-info"><h3 class="roupa-nome">${r.nome}</h3></div>`; c.appendChild(card); }); }
+ // --- NOVO: Atualiza o avatar no perfil ---
+    const profileAvatar = document.getElementById('profileAvatar');
+    profileAvatar.src = currentUser.avatar_url || 'avatar-placeholder.png';
+    
+    openTab({currentTarget: document.querySelector('.tab-link')}, 'tabDados'); 
+    showModal('profileModal'); 
+}
+
+// --- NOVA FUNÇÃO DE UPLOAD ---
+async function handleAvatarUpload(e) {
+    e.preventDefault();
+    const avatarInput = document.getElementById('avatarUploadInput');
+    const file = avatarInput.files[0];
+
+    if (!file) {
+        showToast("Por favor, selecione um arquivo de imagem.", "error");
+        return;
+    }
+    if (!currentUser) {
+        showToast("Você precisa estar logado para salvar uma foto.", "error");
+        return;
+    }
+
+    showToast("Enviando foto...", "info");
+
+    const filePath = `${currentUser.id}/${Date.now()}`;
+
+    // 1. Envia o arquivo para o Supabase Storage
+    const { error: uploadError } = await supabaseClient.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+    if (uploadError) {
+        showToast(`Erro no upload: ${uploadError.message}`, "error");
+        return;
+    }
+
+    // 2. Pega a URL pública do arquivo
+    const { data } = supabaseClient.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+    const publicUrl = data.publicUrl;
+
+    // 3. Salva essa URL na tabela 'perfis'
+    const { error: updateError } = await supabaseClient
+        .from('perfis')
+        .update({ avatar_url: publicUrl })
+        .eq('id', currentUser.id);
+
+    if (updateError) {
+        showToast(`Erro ao salvar a foto: ${updateError.message}`, "error");
+    } else {
+        currentUser.avatar_url = publicUrl;
+        updateUI(); // Atualiza o avatar no header
+        document.getElementById('profileAvatar').src = publicUrl; // Atualiza no perfil
+        showToast("Foto de perfil atualizada!", "success");
+    }
+}
 
 // ======================================================
 // FUNÇÕES DE ADMIN COM SUPABASE
@@ -195,3 +253,4 @@ function showQuickView(id) { const r = roupas.find(rp => rp.id === id); if (!r) 
 // FUNÇÕES GLOBAIS
 // ======================================================
 window.openTab = openTab; window.toggleReserva = toggleReserva; window.cancelReservation = cancelReservation; window.showEditRoupaModal = showEditRoupaModal; window.removeFromCartAndUpdate = removeFromCartAndUpdate; window.confirmDelete = confirmDelete; window.toggleWishlist = toggleWishlist; window.showQuickView = showQuickView;
+
