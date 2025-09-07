@@ -16,7 +16,7 @@ let currentUser = null, roupas = [], cart = [], reservations = [];
 // INICIALIZAÇÃO
 // ======================================================
 document.addEventListener('DOMContentLoaded', async () => {
-    listenToAuthState(); // ADICIONADO: Começa a "escutar" por eventos de auth
+    listenToAuthState();
     await checkUserSession();
     await loadRoupasFromDB();
     loadLocalData();
@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function checkUserSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session && session.user) {
+        // --- ALTERADO: Busca também o avatar_url ---
         const { data: profile } = await supabaseClient.from('perfis').select('name, wishlist, avatar_url').eq('id', session.user.id).single();
         if (profile) {
             currentUser = {
@@ -38,7 +39,7 @@ async function checkUserSession() {
                 email: session.user.email,
                 name: profile.name,
                 wishlist: profile.wishlist || [],
-                avatar_url: profile.avatar_url,
+                avatar_url: profile.avatar_url, // Adicionado
                 isAdmin: false 
             };
         }
@@ -85,19 +86,47 @@ function setupEventListeners() {
     document.getElementById('sizeFilter').addEventListener('change', renderClothes); 
     document.getElementById('priceFilter').addEventListener('change', renderClothes); 
     document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
-    
-    // --- LISTENERS PARA REDEFINIÇÃO DE SENHA ADICIONADOS ---
     document.getElementById('forgotPasswordBtn').addEventListener('click', () => { hideModal('clientLoginModal'); showModal('resetPasswordModal'); });
     document.getElementById('closeResetPasswordModal').addEventListener('click', () => hideModal('resetPasswordModal'));
     document.getElementById('resetPasswordForm').addEventListener('submit', handlePasswordResetRequest);
     document.getElementById('closeUpdatePasswordModal').addEventListener('click', () => hideModal('updatePasswordModal'));
     document.getElementById('updatePasswordForm').addEventListener('submit', handleUpdatePassword);
+    
+    // --- NOVO LISTENER ---
     document.getElementById('avatarUploadForm').addEventListener('submit', handleAvatarUpload);
 }
 function showModal(modalId) { const modal = document.getElementById(modalId); if (modal) modal.classList.remove('hidden'); }
 function hideModal(modalId) { const modal = document.getElementById(modalId); if (modal) modal.classList.add('hidden'); }
 function updateAndRenderAll() { updateUI(); renderClothes(); }
-function updateUI() { const userSection = document.getElementById('userSection'); const registerBtn = document.getElementById('registerBtn'); const clientLoginBtn = document.getElementById('clientLoginBtn'); const cartBtn = document.getElementById('cartBtn'); const adminPanel = document.getElementById('adminPanel'); if (currentUser) { userSection.classList.remove('hidden'); document.getElementById('userGreeting').textContent = `Olá, ${currentUser.name}`; document.getElementById('headerAvatar').src = currentUser.avatar_url || 'avatar-placeholder.png'; registerBtn.classList.add('hidden'); clientLoginBtn.classList.add('hidden'); cartBtn.classList.toggle('hidden', currentUser.isAdmin); adminPanel.classList.toggle('hidden', !currentUser.isAdmin); if (currentUser.isAdmin) renderDashboard(); } else { userSection.classList.add('hidden'); adminPanel.classList.add('hidden'); cartBtn.classList.add('hidden'); registerBtn.classList.remove('hidden'); clientLoginBtn.classList.remove('hidden'); } updateCartCount(); }
+
+function updateUI() { 
+    const userSection = document.getElementById('userSection'); 
+    const registerBtn = document.getElementById('registerBtn'); 
+    const clientLoginBtn = document.getElementById('clientLoginBtn'); 
+    const cartBtn = document.getElementById('cartBtn'); 
+    const adminPanel = document.getElementById('adminPanel'); 
+    if (currentUser) { 
+        userSection.classList.remove('hidden'); 
+        document.getElementById('userGreeting').textContent = `Olá, ${currentUser.name}`; 
+        registerBtn.classList.add('hidden'); 
+        clientLoginBtn.classList.add('hidden'); 
+        cartBtn.classList.toggle('hidden', currentUser.isAdmin); 
+        adminPanel.classList.toggle('hidden', !currentUser.isAdmin); 
+        if (currentUser.isAdmin) renderDashboard();
+        
+        // --- NOVO: Atualiza o avatar no header ---
+        const headerAvatar = document.getElementById('headerAvatar');
+        headerAvatar.src = currentUser.avatar_url || 'avatar-placeholder.png';
+
+    } else { 
+        userSection.classList.add('hidden'); 
+        adminPanel.classList.add('hidden'); 
+        cartBtn.classList.add('hidden'); 
+        registerBtn.classList.remove('hidden'); 
+        clientLoginBtn.classList.remove('hidden'); 
+    } 
+    updateCartCount(); 
+}
 function getFilteredClothes() { const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim(); const category = document.getElementById('categoryFilter').value; const size = document.getElementById('sizeFilter').value; const priceRange = document.getElementById('priceFilter').value; return roupas.filter(r => (searchTerm ? r.nome.toLowerCase().includes(searchTerm) : true) && (category ? r.categoria === category : true) && (size ? r.tamanho === size : true) && (priceRange ? (r.preco >= priceRange.split('-')[0] && r.preco <= priceRange.split('-')[1]) : true) && r.status !== 'vendido'); }
 function renderClothes() { const container = document.getElementById('clothesContainer'); container.innerHTML = ''; const roupasFiltradas = getFilteredClothes(); if (!roupasFiltradas || roupasFiltradas.length === 0) { container.innerHTML = '<p>Nenhuma roupa encontrada.</p>'; return; } roupasFiltradas.forEach(roupa => { if (roupa.status === 'vendido') return; const itemInCart = cart.some(item => item.id === roupa.id); const itemInWishlist = currentUser?.wishlist?.includes(roupa.id); const card = document.createElement('div'); card.className = `roupa-card ${itemInCart ? 'in-cart' : ''}`; let clientButtonHtml = ''; if (roupa.status === 'reservado') { clientButtonHtml = `<button class="btn btn-small btn-reserved" disabled><i class="fas fa-bookmark"></i> Reservado</button>`; } else if (itemInCart) { clientButtonHtml = `<button class="btn btn-secondary btn-small" onclick="toggleReserva(${roupa.id})"><i class="fas fa-check"></i> No Carrinho</button>`; } else { clientButtonHtml = `<button class="btn btn-reserve btn-small" onclick="toggleReserva(${roupa.id})"><i class="fas fa-shopping-cart"></i> Reservar</button>`; } let adminButtonsHtml = ''; if (currentUser && currentUser.isAdmin) { adminButtonsHtml = `<button class="btn btn-primary btn-small" onclick='showEditRoupaModal(${roupa.id})'><i class="fas fa-edit"></i> Editar</button><button class="btn btn-danger btn-small" onclick='confirmDelete(${roupa.id})'><i class="fas fa-trash"></i> Excluir</button>`; } let wishlistButtonHtml = ''; if (currentUser && !currentUser.isAdmin) { wishlistButtonHtml = `<button class="wishlist-btn ${itemInWishlist ? 'active' : ''}" onclick="toggleWishlist(${roupa.id}, event)"><i class="fas fa-heart"></i></button>`; } card.innerHTML = `<img src="${roupa.imagem}" class="roupa-image" alt="${roupa.nome}" onclick="showQuickView(${roupa.id})">${wishlistButtonHtml}<div class="roupa-info"><h3 class="roupa-nome">${roupa.nome}</h3><p class="roupa-descricao">${roupa.descricao || ''}</p><div class="roupa-details"><span class="roupa-tamanho">${roupa.tamanho}</span><span class="roupa-preco">R$ ${parseFloat(roupa.preco).toFixed(2)}</span></div><div class="roupa-actions">${currentUser && currentUser.isAdmin ? adminButtonsHtml : clientButtonHtml}</div></div>`; container.appendChild(card); }); }
 function showToast(message, type = 'success') { const toast = document.getElementById('toast'); const toastMessage = document.getElementById('toastMessage'); toastMessage.textContent = message; toast.className = `toast show ${type}`; setTimeout(() => { toast.classList.add('hidden'); }, 3000); }
@@ -107,56 +136,62 @@ function renderDashboard() { const d = document.getElementById('adminDashboard')
 // ======================================================
 // AUTENTICAÇÃO E ADMIN COM SUPABASE
 // ======================================================
-function listenToAuthState() {
-    supabaseClient.auth.onAuthStateChange(async (event, session) => {
-        if (event === "PASSWORD_RECOVERY") {
-            hideModal('clientLoginModal');
-            hideModal('resetPasswordModal');
-            showModal('updatePasswordModal');
-        }
-    });
-}
+function listenToAuthState() { supabaseClient.auth.onAuthStateChange(async (event, session) => { if (event === "PASSWORD_RECOVERY") { hideModal('clientLoginModal'); hideModal('resetPasswordModal'); showModal('updatePasswordModal'); } }); }
 async function handleRegister(e) { e.preventDefault(); const name = document.getElementById('registerName').value; const email = document.getElementById('registerEmail').value; const password = document.getElementById('registerPassword').value; showToast("Cadastrando...", "info"); const { error } = await supabaseClient.auth.signUp({ email, password, options: { data: { name } } }); if (error) { showToast(`Erro no cadastro: ${error.message}`, 'error'); } else { showToast('Cadastro realizado! Verifique seu email para confirmar.', 'success'); hideModal('registerModal'); } }
 async function handleClientLogin(e) { e.preventDefault(); const email = document.getElementById('clientLoginEmail').value; const password = document.getElementById('clientLoginPassword').value; showToast("Entrando...", "info"); const { error } = await supabaseClient.auth.signInWithPassword({ email, password }); if (error) { showToast(`Erro no login: ${error.message}`, 'error'); } else { await checkUserSession(); hideModal('clientLoginModal'); updateAndRenderAll(); showToast(`Bem-vindo(a) de volta, ${currentUser.name}!`, 'success'); } }
 async function logout() { const { error } = await supabaseClient.auth.signOut(); if (error) { showToast(`Erro ao sair: ${error.message}`, 'error'); } else { currentUser = null; updateAndRenderAll(); showToast('Você saiu da sua conta.', 'info'); } }
 function handleLogoClick() { if (currentUser && !currentUser.isAdmin) { showModal('loginModal'); } else if (!currentUser) { showToast("Faça login para solicitar acesso de admin.", "info"); } }
 function handleAdminLogin(e) { e.preventDefault(); const password = document.getElementById('loginPassword').value; if (password === CONFIG.ADMIN_PASSWORD) { currentUser.isAdmin = true; hideModal('loginModal'); updateAndRenderAll(); showToast(`Privilégios de admin concedidos!`, 'success'); } else { showToast('Senha de administrador incorreta!', 'error'); } }
-async function handlePasswordResetRequest(e) {
-    e.preventDefault();
-    const email = document.getElementById('resetEmail').value;
-    showToast("Enviando link...", "info");
-    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin, // Garante que o link aponte para a página inicial
-    });
-    if (error) {
-        showToast(`Erro: ${error.message}`, "error");
-    } else {
-        showToast("Se o email estiver cadastrado, um link de recuperação foi enviado!", "success");
-        hideModal('resetPasswordModal');
-    }
-}
-async function handleUpdatePassword(e) {
-    e.preventDefault();
-    const newPassword = document.getElementById('newPassword').value;
-    showToast("Salvando nova senha...", "info");
-    const { error } = await supabaseClient.auth.updateUser({ password: newPassword });
-    if (error) {
-        showToast(`Erro ao atualizar: ${error.message}`, "error");
-    } else {
-        showToast("Senha alterada com sucesso! Você já pode fazer o login.", "success");
-        hideModal('updatePasswordModal');
-    }
-}
+async function handlePasswordResetRequest(e) { e.preventDefault(); const email = document.getElementById('resetEmail').value; showToast("Enviando link...", "info"); const { error } = await supabaseClient.auth.resetPasswordForEmail(email); if (error) { showToast(`Erro: ${error.message}`, "error"); } else { showToast("Se o email estiver cadastrado, um link de recuperação foi enviado!", "success"); hideModal('resetPasswordModal'); } }
+async function handleUpdatePassword(e) { e.preventDefault(); const newPassword = document.getElementById('newPassword').value; showToast("Salvando nova senha...", "info"); const { error } = await supabaseClient.auth.updateUser({ password: newPassword }); if (error) { showToast(`Erro ao atualizar: ${error.message}`, "error"); } else { showToast("Senha alterada com sucesso! Você já pode fazer o login.", "success"); hideModal('updatePasswordModal'); } }
 
 // ======================================================
 // PERFIL, ABAS E FAVORITOS COM SUPABASE
 // ======================================================
+function showProfileModal() { 
+    if (!currentUser) { showToast("Faça login para ver seu perfil.", "error"); return; } 
+    document.getElementById('profileName').value = currentUser.name; 
+    document.getElementById('profileEmail').value = currentUser.email; 
+    
+    const profileAvatar = document.getElementById('profileAvatar');
+    profileAvatar.src = currentUser.avatar_url || 'avatar-placeholder.png';
+    
+    openTab({currentTarget: document.querySelector('.tab-link')}, 'tabDados'); 
+    showModal('profileModal'); 
+}
 async function handleProfileUpdate(e) { e.preventDefault(); const newName = document.getElementById('profileName').value; const { error } = await supabaseClient.from('perfis').update({ name: newName }).eq('id', currentUser.id); if (error) { showToast(`Erro ao atualizar perfil: ${error.message}`, 'error'); } else { currentUser.name = newName; updateUI(); showToast('Perfil atualizado com sucesso!', 'success'); } }
 async function toggleWishlist(id, e) { e.stopPropagation(); if (!currentUser || currentUser.isAdmin) return; const currentWishlist = [...(currentUser.wishlist || [])]; const itemIndex = currentWishlist.indexOf(id); if (itemIndex > -1) { currentWishlist.splice(itemIndex, 1); } else { currentWishlist.push(id); } const { error } = await supabaseClient.from('perfis').update({ wishlist: currentWishlist }).eq('id', currentUser.id); if (error) { showToast('Erro ao atualizar favoritos.', 'error'); } else { currentUser.wishlist = currentWishlist; showToast(itemIndex > -1 ? 'Removido dos favoritos.' : 'Adicionado aos favoritos!', 'info'); renderClothes(); } }
-function showProfileModal() { if (!currentUser) { showToast("Faça login para ver seu perfil.", "error"); return; } document.getElementById('profileName').value = currentUser.name; document.getElementById('profileEmail').value = currentUser.email; document.getElementById('profileAvatar').src = currentUser.avatar_url || 'avatar-placeholder.png'; openTab({currentTarget: document.querySelector('.tab-link')}, 'tabDados'); showModal('profileModal'); }
 function openTab(evt, tabName) { document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none'); document.querySelectorAll('.tab-link').forEach(l => l.classList.remove('active')); document.getElementById(tabName).style.display = 'block'; evt.currentTarget.classList.add('active'); if (tabName === 'tabFavoritos') renderWishlist(); if (tabName === 'tabReservas') renderMyReservations(); }
 function renderWishlist() { const c = document.getElementById('profileWishlist'); c.innerHTML = ''; if (!currentUser?.wishlist?.length) { c.innerHTML = "<p>Sua lista de favoritos está vazia.</p>"; return; } const items = roupas.filter(r => currentUser.wishlist.includes(r.id)); if (items.length === 0) { c.innerHTML = "<p>Nenhum favorito encontrado.</p>"; return; } items.forEach(r => { const card = document.createElement('div'); card.className = 'roupa-card'; card.innerHTML = `<img src="${r.imagem}" class="roupa-image" onclick="showQuickView(${r.id})"><div class="roupa-info"><h3 class="roupa-nome">${r.nome}</h3></div>`; c.appendChild(card); }); }
-async function handleAvatarUpload(e) { e.preventDefault(); const avatarInput = document.getElementById('avatarUploadInput'); const file = avatarInput.files[0]; if (!file) { showToast("Por favor, selecione um arquivo de imagem.", "error"); return; } if (!currentUser) { showToast("Você precisa estar logado para salvar uma foto.", "error"); return; } showToast("Enviando foto...", "info"); const filePath = `${currentUser.id}/${Date.now()}`; const { error: uploadError } = await supabaseClient.storage.from('avatars').upload(filePath, file); if (uploadError) { showToast(`Erro no upload: ${uploadError.message}`, "error"); return; } const { data } = supabaseClient.storage.from('avatars').getPublicUrl(filePath); const publicUrl = data.publicUrl; const { error: updateError } = await supabaseClient.from('perfis').update({ avatar_url: publicUrl }).eq('id', currentUser.id); if (updateError) { showToast(`Erro ao salvar a foto: ${updateError.message}`, "error"); } else { currentUser.avatar_url = publicUrl; updateUI(); document.getElementById('profileAvatar').src = publicUrl; showToast("Foto de perfil atualizada!", "success"); } }
+
+// --- NOVA FUNÇÃO DE UPLOAD ---
+async function handleAvatarUpload(e) {
+    e.preventDefault();
+    const avatarInput = document.getElementById('avatarUploadInput');
+    const file = avatarInput.files[0];
+
+    if (!file) { showToast("Por favor, selecione um arquivo de imagem.", "error"); return; }
+    if (!currentUser) { showToast("Você precisa estar logado para salvar uma foto.", "error"); return; }
+
+    showToast("Enviando foto...", "info");
+    const filePath = `${currentUser.id}/${Date.now()}`;
+
+    const { error: uploadError } = await supabaseClient.storage.from('avatars').upload(filePath, file);
+    if (uploadError) { showToast(`Erro no upload: ${uploadError.message}`, "error"); return; }
+
+    const { data } = supabaseClient.storage.from('avatars').getPublicUrl(filePath);
+    const publicUrl = data.publicUrl;
+
+    const { error: updateError } = await supabaseClient.from('perfis').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
+    if (updateError) {
+        showToast(`Erro ao salvar a foto: ${updateError.message}`, "error");
+    } else {
+        currentUser.avatar_url = publicUrl;
+        updateUI();
+        document.getElementById('profileAvatar').src = publicUrl;
+        showToast("Foto de perfil atualizada!", "success");
+    }
+}
 
 // ======================================================
 // FUNÇÕES DE ADMIN COM SUPABASE
