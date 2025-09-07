@@ -56,8 +56,41 @@ function saveReservations() { localStorage.setItem(STORAGE_KEYS.RESERVATIONS, JS
 // EVENT LISTENERS E UI
 // ======================================================
 function setupEventListeners() { 
-    // ... (Seus listeners existentes)
-    document.getElementById('logo').addEventListener('click', handleLogoClick); document.getElementById('registerBtn').addEventListener('click', () => showModal('registerModal')); document.getElementById('clientLoginBtn').addEventListener('click', () => showModal('clientLoginModal')); document.getElementById('cartBtn').addEventListener('click', openCart); document.getElementById('profileBtn').addEventListener('click', showProfileModal); document.getElementById('addRoupaBtn').addEventListener('click', showAddRoupaModal); document.getElementById('closeLoginModal').addEventListener('click', () => hideModal('loginModal')); document.getElementById('closeClientLoginModal').addEventListener('click', () => hideModal('clientLoginModal')); document.getElementById('closeRegisterModal').addEventListener('click', () => hideModal('registerModal')); document.getElementById('closeRoupaModal').addEventListener('click', () => hideModal('roupaModal')); document.getElementById('closeConfirmModal').addEventListener('click', () => hideModal('confirmModal')); document.getElementById('closeCartModal').addEventListener('click', () => hideModal('cartModal')); document.getElementById('closeProfileModal').addEventListener('click', () => hideModal('profileModal')); document.getElementById('closeQuickViewModal').addEventListener('click', () => hideModal('quickViewModal')); document.querySelectorAll('.modal').forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) hideModal(modal.id); })); document.getElementById('loginForm').addEventListener('submit', handleAdminLogin); document.getElementById('clientLoginForm').addEventListener('submit', handleClientLogin); document.getElementById('registerForm').addEventListener('submit', handleRegister); document.getElementById('roupaForm').addEventListener('submit', handleRoupaSubmit); document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate); document.getElementById('logoutBtn').addEventListener('click', logout); document.getElementById('clearCartBtn').addEventListener('click', clearCart); document.getElementById('checkoutBtn').addEventListener('click', checkout); document.getElementById('switchToRegister').addEventListener('click', () => { hideModal('clientLoginModal'); showModal('registerModal'); }); document.getElementById('searchBtn').addEventListener('click', renderClothes); document.getElementById('searchInput').addEventListener('keyup', (e) => { if (e.key === 'Enter') renderClothes(); }); document.getElementById('categoryFilter').addEventListener('change', renderClothes); document.getElementById('sizeFilter').addEventListener('change', renderClothes); document.getElementById('priceFilter').addEventListener('change', renderClothes); document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters); document.getElementById('forgotPasswordBtn').addEventListener('click', () => { hideModal('clientLoginModal'); showModal('resetPasswordModal'); }); document.getElementById('closeResetPasswordModal').addEventListener('click', () => hideModal('resetPasswordModal')); document.getElementById('resetPasswordForm').addEventListener('submit', handlePasswordResetRequest); document.getElementById('closeUpdatePasswordModal').addEventListener('click', () => hideModal('updatePasswordModal')); document.getElementById('updatePasswordForm').addEventListener('submit', handleUpdatePassword);
+    document.getElementById('logo').addEventListener('click', handleLogoClick); 
+    document.getElementById('registerBtn').addEventListener('click', () => showModal('registerModal')); 
+    document.getElementById('clientLoginBtn').addEventListener('click', () => showModal('clientLoginModal')); 
+    document.getElementById('cartBtn').addEventListener('click', openCart); 
+    document.getElementById('profileBtn').addEventListener('click', showProfileModal); 
+    document.getElementById('addRoupaBtn').addEventListener('click', showAddRoupaModal); 
+    document.getElementById('closeLoginModal').addEventListener('click', () => hideModal('loginModal')); 
+    document.getElementById('closeClientLoginModal').addEventListener('click', () => hideModal('clientLoginModal')); 
+    document.getElementById('closeRegisterModal').addEventListener('click', () => hideModal('registerModal')); 
+    document.getElementById('closeRoupaModal').addEventListener('click', () => hideModal('roupaModal')); 
+    document.getElementById('closeConfirmModal').addEventListener('click', () => hideModal('confirmModal')); 
+    document.getElementById('closeCartModal').addEventListener('click', () => hideModal('cartModal')); 
+    document.getElementById('closeProfileModal').addEventListener('click', () => hideModal('profileModal')); 
+    document.getElementById('closeQuickViewModal').addEventListener('click', () => hideModal('quickViewModal')); 
+    document.querySelectorAll('.modal').forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) hideModal(modal.id); })); 
+    document.getElementById('loginForm').addEventListener('submit', handleAdminLogin); 
+    document.getElementById('clientLoginForm').addEventListener('submit', handleClientLogin); 
+    document.getElementById('registerForm').addEventListener('submit', handleRegister); 
+    document.getElementById('roupaForm').addEventListener('submit', handleRoupaSubmit); 
+    document.getElementById('profileForm').addEventListener('submit', handleProfileUpdate); 
+    document.getElementById('logoutBtn').addEventListener('click', logout); 
+    document.getElementById('clearCartBtn').addEventListener('click', clearCart); 
+    document.getElementById('checkoutBtn').addEventListener('click', checkout); 
+    document.getElementById('switchToRegister').addEventListener('click', () => { hideModal('clientLoginModal'); showModal('registerModal'); }); 
+    document.getElementById('searchBtn').addEventListener('click', renderClothes); 
+    document.getElementById('searchInput').addEventListener('keyup', (e) => { if (e.key === 'Enter') renderClothes(); }); 
+    document.getElementById('categoryFilter').addEventListener('change', renderClothes); 
+    document.getElementById('sizeFilter').addEventListener('change', renderClothes); 
+    document.getElementById('priceFilter').addEventListener('change', renderClothes); 
+    document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
+    document.getElementById('forgotPasswordBtn').addEventListener('click', () => { hideModal('clientLoginModal'); showModal('resetPasswordModal'); });
+    document.getElementById('closeResetPasswordModal').addEventListener('click', () => hideModal('resetPasswordModal'));
+    document.getElementById('resetPasswordForm').addEventListener('submit', handlePasswordResetRequest);
+    document.getElementById('closeUpdatePasswordModal').addEventListener('click', () => hideModal('updatePasswordModal'));
+    document.getElementById('updatePasswordForm').addEventListener('submit', handleUpdatePassword);
     
     // --- NOVO LISTENER ---
     document.getElementById('avatarUploadForm').addEventListener('submit', handleAvatarUpload);
@@ -120,7 +153,6 @@ function showProfileModal() {
     document.getElementById('profileName').value = currentUser.name; 
     document.getElementById('profileEmail').value = currentUser.email; 
     
-    // --- NOVO: Atualiza o avatar no perfil ---
     const profileAvatar = document.getElementById('profileAvatar');
     profileAvatar.src = currentUser.avatar_url || 'avatar-placeholder.png';
     
@@ -138,36 +170,25 @@ async function handleAvatarUpload(e) {
     const avatarInput = document.getElementById('avatarUploadInput');
     const file = avatarInput.files[0];
 
-    if (!file) {
-        showToast("Por favor, selecione um arquivo de imagem.", "error");
-        return;
-    }
-    if (!currentUser) {
-        showToast("Você precisa estar logado para salvar uma foto.", "error");
-        return;
-    }
+    if (!file) { showToast("Por favor, selecione um arquivo de imagem.", "error"); return; }
+    if (!currentUser) { showToast("Você precisa estar logado para salvar uma foto.", "error"); return; }
 
     showToast("Enviando foto...", "info");
     const filePath = `${currentUser.id}/${Date.now()}`;
 
     const { error: uploadError } = await supabaseClient.storage.from('avatars').upload(filePath, file);
-
-    if (uploadError) {
-        showToast(`Erro no upload: ${uploadError.message}`, "error");
-        return;
-    }
+    if (uploadError) { showToast(`Erro no upload: ${uploadError.message}`, "error"); return; }
 
     const { data } = supabaseClient.storage.from('avatars').getPublicUrl(filePath);
     const publicUrl = data.publicUrl;
 
     const { error: updateError } = await supabaseClient.from('perfis').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
-
     if (updateError) {
         showToast(`Erro ao salvar a foto: ${updateError.message}`, "error");
     } else {
         currentUser.avatar_url = publicUrl;
-        updateUI(); // Atualiza o avatar no header
-        document.getElementById('profileAvatar').src = publicUrl; // Atualiza no perfil
+        updateUI();
+        document.getElementById('profileAvatar').src = publicUrl;
         showToast("Foto de perfil atualizada!", "success");
     }
 }
